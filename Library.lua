@@ -1,3 +1,8 @@
+--[[
+    Library.lua
+    Removed outer window border, added ColonSlider (range slider)
+]]
+
 local InputService = game:GetService('UserInputService');
 local TextService = game:GetService('TextService');
 local CoreGui = game:GetService('CoreGui');
@@ -63,7 +68,7 @@ table.insert(Library.Signals, RenderStepped:Connect(function(Delta)
 
         Library.CurrentRainbowHue = Hue;
         Library.CurrentRainbowColor = Color3.fromHSV(Hue, 0.8, 1);
-    end
+    end;
 end))
 
 local function GetPlayersString()
@@ -353,16 +358,6 @@ function Library:RemoveFromRegistry(Instance)
 end;
 
 function Library:UpdateColorsUsingRegistry()
-    -- TODO: Could have an 'active' list of objects
-    -- where the active list only contains Visible objects.
-
-    -- IMPL: Could setup .Changed events on the AddToRegistry function
-    -- that listens for the 'Visible' propert being changed.
-    -- Visible: true => Add to active list, and call UpdateColors function
-    -- Visible: false => Remove from active list.
-
-    -- The above would be especially efficient for a rainbow menu color or live color-changing.
-
     for Idx, Object in next, Library.Registry do
         for Property, ColorIdx in next, Object.Properties do
             if type(ColorIdx) == 'string' then
@@ -375,18 +370,15 @@ function Library:UpdateColorsUsingRegistry()
 end;
 
 function Library:GiveSignal(Signal)
-    -- Only used for signals not attached to library instances, as those should be cleaned up on object destruction by Roblox
     table.insert(Library.Signals, Signal)
 end
 
 function Library:Unload()
-    -- Unload all of the signals
     for Idx = #Library.Signals, 1, -1 do
         local Connection = table.remove(Library.Signals, Idx)
         Connection:Disconnect()
     end
 
-     -- Call our unload callback, maybe to undo some hooks etc
     if Library.OnUnload then
         Library.OnUnload()
     end
@@ -442,7 +434,6 @@ do
             Parent = ToggleLabel;
         });
 
-        -- Transparency image taken from https://github.com/matas3535/SplixPrivateDrawingLibrary/blob/main/Library.lua cus i'm lazy
         local CheckerFrame = Library:Create('ImageLabel', {
             BorderSizePixel = 0;
             Size = UDim2.new(0, 27, 0, 13);
@@ -451,11 +442,6 @@ do
             Visible = not not Info.Transparency;
             Parent = DisplayFrame;
         });
-
-        -- 1/16/23
-        -- Rewrote this to be placed inside the Library ScreenGui
-        -- There was some issue which caused RelativeOffset to be way off
-        -- Thus the color picker would never show
 
         local PickerFrameOuter = Library:Create('Frame', {
             Name = 'Color';
@@ -659,12 +645,11 @@ do
             Position = UDim2.fromOffset(5, 5);
             TextXAlignment = Enum.TextXAlignment.Left;
             TextSize = 14;
-            Text = ColorPicker.Title,--Info.Default;
+            Text = ColorPicker.Title;
             TextWrapped = false;
             ZIndex = 16;
             Parent = PickerFrameInner;
         });
-
 
         local ContextMenu = {}
         do
@@ -780,7 +765,6 @@ do
                 ColorPicker:SetValueRGB(Library.ColorClipboard)
             end)
 
-
             ContextMenu:AddOption('Copy HEX', function()
                 pcall(setclipboard, ColorPicker.Value:ToHex())
                 Library:Notify('Copied hex code to clipboard!', 2)
@@ -790,7 +774,6 @@ do
                 pcall(setclipboard, table.concat({ math.floor(ColorPicker.Value.R * 255), math.floor(ColorPicker.Value.G * 255), math.floor(ColorPicker.Value.B * 255) }, ', '))
                 Library:Notify('Copied RGB values to clipboard!', 2)
             end)
-
         end
 
         Library:AddToRegistry(PickerFrameInner, { BackgroundColor3 = 'BackgroundColor'; BorderColor3 = 'OutlineColor'; });
@@ -1010,7 +993,7 @@ do
         local KeyPicker = {
             Value = Info.Default;
             Toggled = false;
-            Mode = Info.Mode or 'Toggle'; -- Always, Toggle, Hold
+            Mode = Info.Mode or 'Toggle';
             Type = 'KeyPicker';
             Callback = Info.Callback or function(Value) end;
             ChangedCallback = Info.ChangedCallback or function(New) end;
@@ -1404,7 +1387,6 @@ do
     end;
 
     function Funcs:AddButton(...)
-        -- TODO: Eventually redo this
         local Button = {};
         local function ProcessButtonParams(Class, Obj, ...)
             local Props = select(1, ...)
@@ -1550,7 +1532,6 @@ do
             end
             return self
         end
-
 
         function Button:AddButton(...)
             local SubButton = {}
@@ -1759,28 +1740,20 @@ do
             end);
         end
 
-        -- https://devforum.roblox.com/t/how-to-make-textboxes-follow-current-cursor-position/1368429/6
-        -- thank you nicemike40 :)
-
         local function Update()
             local PADDING = 2
             local reveal = Container.AbsoluteSize.X
 
             if not Box:IsFocused() or Box.TextBounds.X <= reveal - 2 * PADDING then
-                -- we aren't focused, or we fit so be normal
                 Box.Position = UDim2.new(0, PADDING, 0, 0)
             else
-                -- we are focused and don't fit, so adjust position
                 local cursor = Box.CursorPosition
                 if cursor ~= -1 then
-                    -- calculate pixel width of text from start to cursor
                     local subtext = string.sub(Box.Text, 1, cursor-1)
                     local width = TextService:GetTextSize(subtext, Box.TextSize, Box.Font, Vector2.new(math.huge, math.huge)).X
 
-                    -- check if we're inside the box with the cursor
                     local currentCursorPos = Box.Position.X.Offset + width
 
-                    -- adjust if necessary
                     if currentCursorPos < PADDING then
                         Box.Position = UDim2.fromOffset(PADDING-width, 0)
                     elseif currentCursorPos > reveal - PADDING - 1 then
@@ -1926,7 +1899,7 @@ do
 
         ToggleRegion.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
-                Toggle:SetValue(not Toggle.Value) -- Why was it not like this from the start?
+                Toggle:SetValue(not Toggle.Value)
                 Library:AttemptSave();
             end;
         end);
@@ -2087,7 +2060,6 @@ do
                 return math.floor(Value);
             end;
 
-
             return tonumber(string.format('%.' .. Slider.Rounding .. 'f', Value))
         end;
 
@@ -2148,6 +2120,254 @@ do
         return Slider;
     end;
 
+    -- NEW: ColonSlider (dual‑handle range slider)
+    function Funcs:AddColonSlider(Idx, Info)
+        assert(Info.Text, 'AddColonSlider: Missing slider text.')
+        assert(Info.Min ~= nil, 'AddColonSlider: Missing minimum value.')
+        assert(Info.Max ~= nil, 'AddColonSlider: Missing maximum value.')
+        assert(Info.DefaultMin ~= nil, 'AddColonSlider: Missing default minimum value.')
+        assert(Info.DefaultMax ~= nil, 'AddColonSlider: Missing default maximum value.')
+        assert(Info.Rounding, 'AddColonSlider: Missing rounding value.')
+
+        local RangeSlider = {
+            MinValue = Info.DefaultMin,
+            MaxValue = Info.DefaultMax,
+            Min = Info.Min,
+            Max = Info.Max,
+            Rounding = Info.Rounding,
+            MaxSize = 232,
+            Type = 'ColonSlider',
+            Callback = Info.Callback or function(Min, Max) end,
+        }
+
+        -- Clamp defaults
+        RangeSlider.MinValue = math.clamp(RangeSlider.MinValue, RangeSlider.Min, RangeSlider.Max)
+        RangeSlider.MaxValue = math.clamp(RangeSlider.MaxValue, RangeSlider.MinValue, RangeSlider.Max)
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        if not Info.Compact then
+            Library:CreateLabel({
+                Size = UDim2.new(1, 0, 0, 10);
+                TextSize = 14;
+                Text = Info.Text;
+                TextXAlignment = Enum.TextXAlignment.Left;
+                TextYAlignment = Enum.TextYAlignment.Bottom;
+                ZIndex = 5;
+                Parent = Container;
+            })
+            Groupbox:AddBlank(3)
+        end
+
+        -- Outer border / track
+        local SliderOuter = Library:Create('Frame', {
+            BackgroundColor3 = Color3.new(0, 0, 0);
+            BorderColor3 = Color3.new(0, 0, 0);
+            Size = UDim2.new(1, -4, 0, 13);
+            ZIndex = 5;
+            Parent = Container;
+        })
+        Library:AddToRegistry(SliderOuter, { BorderColor3 = 'Black' })
+
+        local SliderInner = Library:Create('Frame', {
+            BackgroundColor3 = Library.MainColor;
+            BorderColor3 = Library.OutlineColor;
+            BorderMode = Enum.BorderMode.Inset;
+            Size = UDim2.new(1, 0, 1, 0);
+            ZIndex = 6;
+            Parent = SliderOuter;
+        })
+        Library:AddToRegistry(SliderInner, {
+            BackgroundColor3 = 'MainColor';
+            BorderColor3 = 'OutlineColor';
+        })
+
+        -- The filled area between the two handles
+        local Fill = Library:Create('Frame', {
+            BackgroundColor3 = Library.AccentColor;
+            BorderColor3 = Library.AccentColorDark;
+            Size = UDim2.new(0, 0, 1, 0);
+            ZIndex = 7;
+            Parent = SliderInner;
+        })
+        Library:AddToRegistry(Fill, {
+            BackgroundColor3 = 'AccentColor';
+            BorderColor3 = 'AccentColorDark';
+        })
+
+        -- Left handle (circle)
+        local LeftHandle = Library:Create('ImageLabel', {
+            AnchorPoint = Vector2.new(0.5, 0.5);
+            BackgroundColor3 = Library.AccentColor;
+            BorderColor3 = Library.AccentColorDark;
+            BorderMode = Enum.BorderMode.Inset;
+            Size = UDim2.new(0, 10, 0, 10);
+            Image = 'rbxassetid://266029000'; -- circle
+            ImageColor3 = Library.AccentColor;
+            ZIndex = 8;
+            Parent = SliderInner;
+        })
+        Library:AddToRegistry(LeftHandle, { ImageColor3 = 'AccentColor' })
+
+        -- Right handle
+        local RightHandle = Library:Create('ImageLabel', {
+            AnchorPoint = Vector2.new(0.5, 0.5);
+            BackgroundColor3 = Library.AccentColor;
+            BorderColor3 = Library.AccentColorDark;
+            BorderMode = Enum.BorderMode.Inset;
+            Size = UDim2.new(0, 10, 0, 10);
+            Image = 'rbxassetid://266029000';
+            ImageColor3 = Library.AccentColor;
+            ZIndex = 8;
+            Parent = SliderInner;
+        })
+        Library:AddToRegistry(RightHandle, { ImageColor3 = 'AccentColor' })
+
+        -- Label showing current range
+        local DisplayLabel = Library:CreateLabel({
+            Size = UDim2.new(1, 0, 1, 0);
+            TextSize = 11;
+            Text = '';
+            ZIndex = 9;
+            Parent = SliderInner;
+        })
+
+        Library:OnHighlight(SliderOuter, SliderOuter,
+            { BorderColor3 = 'AccentColor' },
+            { BorderColor3 = 'Black' }
+        )
+
+        if type(Info.Tooltip) == 'string' then
+            Library:AddToolTip(Info.Tooltip, SliderOuter)
+        end
+
+        local function roundToStep(value)
+            if RangeSlider.Rounding == 0 then
+                return math.floor(value)
+            end
+            return tonumber(string.format('%.' .. RangeSlider.Rounding .. 'f', value))
+        end
+
+        local function getMinPos()
+            local t = (RangeSlider.MinValue - RangeSlider.Min) / (RangeSlider.Max - RangeSlider.Min)
+            return t * RangeSlider.MaxSize
+        end
+
+        local function getMaxPos()
+            local t = (RangeSlider.MaxValue - RangeSlider.Min) / (RangeSlider.Max - RangeSlider.Min)
+            return t * RangeSlider.MaxSize
+        end
+
+        local function updateUI()
+            local minX = getMinPos()
+            local maxX = getMaxPos()
+            LeftHandle.Position = UDim2.new(0, minX, 0.5, 0)
+            RightHandle.Position = UDim2.new(0, maxX, 0.5, 0)
+            Fill.Position = UDim2.new(0, minX, 0, 0)
+            Fill.Size = UDim2.new(0, maxX - minX, 1, 0)
+
+            local suffix = Info.Suffix or ''
+            DisplayLabel.Text = string.format('%s%s / %s%s', RangeSlider.MinValue, suffix, RangeSlider.MaxValue, suffix)
+        end
+
+        local function setValues(minVal, maxVal, fromUser)
+            minVal = math.clamp(minVal, RangeSlider.Min, RangeSlider.Max)
+            maxVal = math.clamp(maxVal, minVal, RangeSlider.Max)
+            minVal = roundToStep(minVal)
+            maxVal = roundToStep(maxVal)
+
+            if minVal == RangeSlider.MinValue and maxVal == RangeSlider.MaxValue then return end
+            RangeSlider.MinValue = minVal
+            RangeSlider.MaxValue = maxVal
+            updateUI()
+
+            if fromUser then
+                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
+                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
+                Library:AttemptSave()
+            end
+        end
+
+        function RangeSlider:SetValues(minVal, maxVal)
+            setValues(minVal, maxVal, true)
+        end
+
+        function RangeSlider:OnChanged(Func)
+            RangeSlider.Changed = Func
+            Func(RangeSlider.MinValue, RangeSlider.MaxValue)
+        end
+
+        -- Dragging logic
+        local draggingLeft = false
+        local draggingRight = false
+        local dragStartPosX, dragStartValue
+
+        local function startDrag(handle, isLeft)
+            return function(Input)
+                if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                    if isLeft then draggingLeft = true else draggingRight = true end
+                    dragStartPosX = Mouse.X
+                    dragStartValue = isLeft and RangeSlider.MinValue or RangeSlider.MaxValue
+
+                    while (draggingLeft or draggingRight) and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                        local delta = Mouse.X - dragStartPosX
+                        local deltaValue = (delta / RangeSlider.MaxSize) * (RangeSlider.Max - RangeSlider.Min)
+                        local newVal = roundToStep(dragStartValue + deltaValue)
+                        if isLeft then
+                            newVal = math.clamp(newVal, RangeSlider.Min, RangeSlider.MaxValue)
+                            if newVal ~= RangeSlider.MinValue then
+                                RangeSlider.MinValue = newVal
+                                updateUI()
+                                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
+                                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
+                            end
+                        else
+                            newVal = math.clamp(newVal, RangeSlider.MinValue, RangeSlider.Max)
+                            if newVal ~= RangeSlider.MaxValue then
+                                RangeSlider.MaxValue = newVal
+                                updateUI()
+                                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
+                                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
+                            end
+                        end
+                        RenderStepped:Wait()
+                    end
+                    draggingLeft = false
+                    draggingRight = false
+                    Library:AttemptSave()
+                end
+            end
+        end
+
+        LeftHandle.InputBegan:Connect(startDrag(LeftHandle, true))
+        RightHandle.InputBegan:Connect(startDrag(RightHandle, false))
+
+        -- click on track to move both? optional, but not needed for basic version
+        SliderInner.InputBegan:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                local clickX = Mouse.X - SliderInner.AbsolutePosition.X
+                local clickT = math.clamp(clickX / RangeSlider.MaxSize, 0, 1)
+                local clickValue = roundToStep(RangeSlider.Min + clickT * (RangeSlider.Max - RangeSlider.Min))
+                -- move nearest handle
+                local distToLeft = math.abs(clickValue - RangeSlider.MinValue)
+                local distToRight = math.abs(clickValue - RangeSlider.MaxValue)
+                if distToLeft < distToRight then
+                    setValues(clickValue, RangeSlider.MaxValue, true)
+                else
+                    setValues(RangeSlider.MinValue, clickValue, true)
+                end
+            end
+        end)
+
+        setValues(RangeSlider.MinValue, RangeSlider.MaxValue, false)
+        Groupbox:AddBlank(Info.BlankSize or 6)
+        Groupbox:Resize()
+
+        Options[Idx] = RangeSlider
+        return RangeSlider
+    end
+
     function Funcs:AddDropdown(Idx, Info)
         if Info.SpecialType == 'Player' then
             Info.Values = GetPlayersString();
@@ -2169,7 +2389,7 @@ do
             Value = Info.Multi and {};
             Multi = Info.Multi;
             Type = 'Dropdown';
-            SpecialType = Info.SpecialType; -- can be either 'Player' or 'Team'
+            SpecialType = Info.SpecialType;
             Callback = Info.Callback or function(Value) end;
         };
 
@@ -2757,8 +2977,6 @@ do
     Library.WatermarkText = WatermarkLabel;
     Library:MakeDraggable(Library.Watermark);
 
-
-
     local KeybindOuter = Library:Create('Frame', {
         AnchorPoint = Vector2.new(0, 0.5);
         BorderColor3 = Color3.new(0, 0, 0);
@@ -2962,6 +3180,7 @@ function Library:CreateWindow(...)
     local Outer = Library:Create('Frame', {
         AnchorPoint = Config.AnchorPoint,
         BackgroundColor3 = Color3.new(0, 0, 0);
+        BackgroundTransparency = 1, -- remove outer border
         BorderSizePixel = 0;
         Position = Config.Position,
         Size = Config.Size,
@@ -2976,6 +3195,7 @@ function Library:CreateWindow(...)
         BackgroundColor3 = Library.MainColor;
         BorderColor3 = Library.AccentColor;
         BorderMode = Enum.BorderMode.Inset;
+        BorderSizePixel = 0, -- remove the accent border around the whole window
         Position = UDim2.new(0, 1, 0, 1);
         Size = UDim2.new(1, -2, 1, -2);
         ZIndex = 1;
@@ -3202,7 +3422,6 @@ function Library:CreateWindow(...)
             local BoxInner = Library:Create('Frame', {
                 BackgroundColor3 = Library.BackgroundColor;
                 BorderColor3 = Color3.new(0, 0, 0);
-                -- BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 4;
@@ -3302,7 +3521,6 @@ function Library:CreateWindow(...)
             local BoxInner = Library:Create('Frame', {
                 BackgroundColor3 = Library.BackgroundColor;
                 BorderColor3 = Color3.new(0, 0, 0);
-                -- BorderMode = Enum.BorderMode.Inset;
                 Size = UDim2.new(1, -2, 1, -2);
                 Position = UDim2.new(0, 1, 0, 1);
                 ZIndex = 4;
@@ -3458,7 +3676,6 @@ function Library:CreateWindow(...)
                 Tab:AddBlank(3);
                 Tab:Resize();
 
-                -- Show first tab (number is 2 cus of the UIListLayout that also sits in that instance)
                 if #TabboxButtons:GetChildren() == 2 then
                     Tab:Show();
                 end;
@@ -3485,7 +3702,6 @@ function Library:CreateWindow(...)
             end;
         end);
 
-        -- This was the first tab added, so we show it by default.
         if #TabContainer:GetChildren() == 1 then
             Tab:ShowTab();
         end;
@@ -3518,11 +3734,9 @@ function Library:CreateWindow(...)
         ModalElement.Modal = Toggled;
 
         if Toggled then
-            -- A bit scuffed, but if we're going from not toggled -> toggled we want to show the frame immediately so that the fade is visible.
             Outer.Visible = true;
 
             task.spawn(function()
-                -- TODO: add cursor fade?
                 local State = InputService.MouseIconEnabled;
 
                 local Cursor = Drawing.new('Triangle');
