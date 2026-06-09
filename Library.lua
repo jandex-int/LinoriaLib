@@ -1,6 +1,7 @@
 --[[
     Library.lua
-    Removed outer window border, added ColonSlider (range slider)
+    – Outer window border removed
+    – Added AddColonSlider: two independent sliders side by side
 ]]
 
 local InputService = game:GetService('UserInputService');
@@ -403,7 +404,6 @@ do
 
     function Funcs:AddColorPicker(Idx, Info)
         local ToggleLabel = self.TextLabel;
-        -- local Container = self.Container;
 
         assert(Info.Default, 'AddColorPicker: Missing default value.');
 
@@ -2120,252 +2120,301 @@ do
         return Slider;
     end;
 
-    -- NEW: ColonSlider (dual‑handle range slider)
+    -- [[ NEW: ColonSlider – two independent sliders side by side ]]
     function Funcs:AddColonSlider(Idx, Info)
-        assert(Info.Text, 'AddColonSlider: Missing slider text.')
-        assert(Info.Min ~= nil, 'AddColonSlider: Missing minimum value.')
-        assert(Info.Max ~= nil, 'AddColonSlider: Missing maximum value.')
-        assert(Info.DefaultMin ~= nil, 'AddColonSlider: Missing default minimum value.')
-        assert(Info.DefaultMax ~= nil, 'AddColonSlider: Missing default maximum value.')
-        assert(Info.Rounding, 'AddColonSlider: Missing rounding value.')
+        assert(Info.LeftMin ~= nil, 'AddColonSlider: missing LeftMin')
+        assert(Info.LeftMax ~= nil, 'AddColonSlider: missing LeftMax')
+        assert(Info.RightMin ~= nil, 'AddColonSlider: missing RightMin')
+        assert(Info.RightMax ~= nil, 'AddColonSlider: missing RightMax')
+        assert(Info.LeftDefault ~= nil, 'AddColonSlider: missing LeftDefault')
+        assert(Info.RightDefault ~= nil, 'AddColonSlider: missing RightDefault')
+        assert(Info.LeftRounding ~= nil, 'AddColonSlider: missing LeftRounding')
+        assert(Info.RightRounding ~= nil, 'AddColonSlider: missing RightRounding')
 
-        local RangeSlider = {
-            MinValue = Info.DefaultMin,
-            MaxValue = Info.DefaultMax,
-            Min = Info.Min,
-            Max = Info.Max,
-            Rounding = Info.Rounding,
-            MaxSize = 232,
+        local ColonSlider = {
+            LeftValue = Info.LeftDefault,
+            RightValue = Info.RightDefault,
+            LeftMin = Info.LeftMin,
+            LeftMax = Info.LeftMax,
+            RightMin = Info.RightMin,
+            RightMax = Info.RightMax,
+            LeftRounding = Info.LeftRounding,
+            RightRounding = Info.RightRounding,
             Type = 'ColonSlider',
-            Callback = Info.Callback or function(Min, Max) end,
+            Callback = Info.Callback or function(left, right) end,
         }
-
-        -- Clamp defaults
-        RangeSlider.MinValue = math.clamp(RangeSlider.MinValue, RangeSlider.Min, RangeSlider.Max)
-        RangeSlider.MaxValue = math.clamp(RangeSlider.MaxValue, RangeSlider.MinValue, RangeSlider.Max)
 
         local Groupbox = self
         local Container = Groupbox.Container
 
+        -- Optional main label
         if not Info.Compact then
             Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 10);
                 TextSize = 14;
-                Text = Info.Text;
+                Text = Info.Text or 'Colon Slider';
                 TextXAlignment = Enum.TextXAlignment.Left;
                 TextYAlignment = Enum.TextYAlignment.Bottom;
                 ZIndex = 5;
                 Parent = Container;
-            })
-            Groupbox:AddBlank(3)
+            });
+            Groupbox:AddBlank(3);
         end
 
-        -- Outer border / track
-        local SliderOuter = Library:Create('Frame', {
-            BackgroundColor3 = Color3.new(0, 0, 0);
-            BorderColor3 = Color3.new(0, 0, 0);
+        -- Outer container for the two sliders (side by side)
+        local SplitContainer = Library:Create('Frame', {
+            BackgroundTransparency = 1;
             Size = UDim2.new(1, -4, 0, 13);
             ZIndex = 5;
             Parent = Container;
         })
-        Library:AddToRegistry(SliderOuter, { BorderColor3 = 'Black' })
 
-        local SliderInner = Library:Create('Frame', {
+        -- Left slider (50% width minus gap)
+        local LeftSliderOuter = Library:Create('Frame', {
+            BackgroundColor3 = Color3.new(0, 0, 0);
+            BorderColor3 = Color3.new(0, 0, 0);
+            Size = UDim2.new(0.5, -3, 1, 0);
+            ZIndex = 5;
+            Parent = SplitContainer;
+        });
+        Library:AddToRegistry(LeftSliderOuter, { BorderColor3 = 'Black' });
+
+        local LeftSliderInner = Library:Create('Frame', {
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
             ZIndex = 6;
-            Parent = SliderOuter;
-        })
-        Library:AddToRegistry(SliderInner, {
+            Parent = LeftSliderOuter;
+        });
+        Library:AddToRegistry(LeftSliderInner, {
             BackgroundColor3 = 'MainColor';
             BorderColor3 = 'OutlineColor';
-        })
+        });
 
-        -- The filled area between the two handles
-        local Fill = Library:Create('Frame', {
+        local LeftFill = Library:Create('Frame', {
             BackgroundColor3 = Library.AccentColor;
             BorderColor3 = Library.AccentColorDark;
             Size = UDim2.new(0, 0, 1, 0);
             ZIndex = 7;
-            Parent = SliderInner;
-        })
-        Library:AddToRegistry(Fill, {
+            Parent = LeftSliderInner;
+        });
+        Library:AddToRegistry(LeftFill, {
             BackgroundColor3 = 'AccentColor';
             BorderColor3 = 'AccentColorDark';
-        })
+        });
 
-        -- Left handle (circle)
-        local LeftHandle = Library:Create('ImageLabel', {
-            AnchorPoint = Vector2.new(0.5, 0.5);
+        local LeftHideBorderRight = Library:Create('Frame', {
             BackgroundColor3 = Library.AccentColor;
-            BorderColor3 = Library.AccentColorDark;
-            BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(0, 10, 0, 10);
-            Image = 'rbxassetid://266029000'; -- circle
-            ImageColor3 = Library.AccentColor;
+            BorderSizePixel = 0;
+            Position = UDim2.new(1, 0, 0, 0);
+            Size = UDim2.new(0, 1, 1, 0);
             ZIndex = 8;
-            Parent = SliderInner;
-        })
-        Library:AddToRegistry(LeftHandle, { ImageColor3 = 'AccentColor' })
+            Parent = LeftFill;
+        });
+        Library:AddToRegistry(LeftHideBorderRight, {
+            BackgroundColor3 = 'AccentColor';
+        });
 
-        -- Right handle
-        local RightHandle = Library:Create('ImageLabel', {
-            AnchorPoint = Vector2.new(0.5, 0.5);
-            BackgroundColor3 = Library.AccentColor;
-            BorderColor3 = Library.AccentColorDark;
-            BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(0, 10, 0, 10);
-            Image = 'rbxassetid://266029000';
-            ImageColor3 = Library.AccentColor;
-            ZIndex = 8;
-            Parent = SliderInner;
-        })
-        Library:AddToRegistry(RightHandle, { ImageColor3 = 'AccentColor' })
-
-        -- Label showing current range
-        local DisplayLabel = Library:CreateLabel({
+        local LeftDisplayLabel = Library:CreateLabel({
             Size = UDim2.new(1, 0, 1, 0);
             TextSize = 11;
             Text = '';
             ZIndex = 9;
-            Parent = SliderInner;
-        })
+            Parent = LeftSliderInner;
+        });
 
-        Library:OnHighlight(SliderOuter, SliderOuter,
+        Library:OnHighlight(LeftSliderOuter, LeftSliderOuter,
             { BorderColor3 = 'AccentColor' },
             { BorderColor3 = 'Black' }
-        )
+        );
+
+        -- Right slider (50% width minus gap)
+        local RightSliderOuter = Library:Create('Frame', {
+            BackgroundColor3 = Color3.new(0, 0, 0);
+            BorderColor3 = Color3.new(0, 0, 0);
+            Position = UDim2.new(0.5, 3, 0, 0);
+            Size = UDim2.new(0.5, -3, 1, 0);
+            ZIndex = 5;
+            Parent = SplitContainer;
+        });
+        Library:AddToRegistry(RightSliderOuter, { BorderColor3 = 'Black' });
+
+        local RightSliderInner = Library:Create('Frame', {
+            BackgroundColor3 = Library.MainColor;
+            BorderColor3 = Library.OutlineColor;
+            BorderMode = Enum.BorderMode.Inset;
+            Size = UDim2.new(1, 0, 1, 0);
+            ZIndex = 6;
+            Parent = RightSliderOuter;
+        });
+        Library:AddToRegistry(RightSliderInner, {
+            BackgroundColor3 = 'MainColor';
+            BorderColor3 = 'OutlineColor';
+        });
+
+        local RightFill = Library:Create('Frame', {
+            BackgroundColor3 = Library.AccentColor;
+            BorderColor3 = Library.AccentColorDark;
+            Size = UDim2.new(0, 0, 1, 0);
+            ZIndex = 7;
+            Parent = RightSliderInner;
+        });
+        Library:AddToRegistry(RightFill, {
+            BackgroundColor3 = 'AccentColor';
+            BorderColor3 = 'AccentColorDark';
+        });
+
+        local RightHideBorderRight = Library:Create('Frame', {
+            BackgroundColor3 = Library.AccentColor;
+            BorderSizePixel = 0;
+            Position = UDim2.new(1, 0, 0, 0);
+            Size = UDim2.new(0, 1, 1, 0);
+            ZIndex = 8;
+            Parent = RightFill;
+        });
+        Library:AddToRegistry(RightHideBorderRight, {
+            BackgroundColor3 = 'AccentColor';
+        });
+
+        local RightDisplayLabel = Library:CreateLabel({
+            Size = UDim2.new(1, 0, 1, 0);
+            TextSize = 11;
+            Text = '';
+            ZIndex = 9;
+            Parent = RightSliderInner;
+        });
+
+        Library:OnHighlight(RightSliderOuter, RightSliderOuter,
+            { BorderColor3 = 'AccentColor' },
+            { BorderColor3 = 'Black' }
+        );
 
         if type(Info.Tooltip) == 'string' then
-            Library:AddToolTip(Info.Tooltip, SliderOuter)
+            Library:AddToolTip(Info.Tooltip, SplitContainer)
         end
 
-        local function roundToStep(value)
-            if RangeSlider.Rounding == 0 then
+        local function roundLeft(value)
+            if ColonSlider.LeftRounding == 0 then
                 return math.floor(value)
             end
-            return tonumber(string.format('%.' .. RangeSlider.Rounding .. 'f', value))
+            return tonumber(string.format('%.' .. ColonSlider.LeftRounding .. 'f', value))
         end
 
-        local function getMinPos()
-            local t = (RangeSlider.MinValue - RangeSlider.Min) / (RangeSlider.Max - RangeSlider.Min)
-            return t * RangeSlider.MaxSize
-        end
-
-        local function getMaxPos()
-            local t = (RangeSlider.MaxValue - RangeSlider.Min) / (RangeSlider.Max - RangeSlider.Min)
-            return t * RangeSlider.MaxSize
-        end
-
-        local function updateUI()
-            local minX = getMinPos()
-            local maxX = getMaxPos()
-            LeftHandle.Position = UDim2.new(0, minX, 0.5, 0)
-            RightHandle.Position = UDim2.new(0, maxX, 0.5, 0)
-            Fill.Position = UDim2.new(0, minX, 0, 0)
-            Fill.Size = UDim2.new(0, maxX - minX, 1, 0)
-
-            local suffix = Info.Suffix or ''
-            DisplayLabel.Text = string.format('%s%s / %s%s', RangeSlider.MinValue, suffix, RangeSlider.MaxValue, suffix)
-        end
-
-        local function setValues(minVal, maxVal, fromUser)
-            minVal = math.clamp(minVal, RangeSlider.Min, RangeSlider.Max)
-            maxVal = math.clamp(maxVal, minVal, RangeSlider.Max)
-            minVal = roundToStep(minVal)
-            maxVal = roundToStep(maxVal)
-
-            if minVal == RangeSlider.MinValue and maxVal == RangeSlider.MaxValue then return end
-            RangeSlider.MinValue = minVal
-            RangeSlider.MaxValue = maxVal
-            updateUI()
-
-            if fromUser then
-                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
-                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
-                Library:AttemptSave()
+        local function roundRight(value)
+            if ColonSlider.RightRounding == 0 then
+                return math.floor(value)
             end
+            return tonumber(string.format('%.' .. ColonSlider.RightRounding .. 'f', value))
         end
 
-        function RangeSlider:SetValues(minVal, maxVal)
-            setValues(minVal, maxVal, true)
+        local leftMaxSize = 232 / 2  -- each slider gets half the normal max size
+        local rightMaxSize = 232 / 2
+
+        function ColonSlider:UpdateLeftDisplay()
+            local suffix = Info.LeftSuffix or ''
+            LeftDisplayLabel.Text = (Info.Compact and '' or (Info.LeftLabel or 'L') .. ': ') .. ColonSlider.LeftValue .. suffix
+            local x = math.ceil(Library:MapValue(ColonSlider.LeftValue, ColonSlider.LeftMin, ColonSlider.LeftMax, 0, leftMaxSize))
+            LeftFill.Size = UDim2.new(0, x, 1, 0)
+            LeftHideBorderRight.Visible = not (x == leftMaxSize or x == 0)
         end
 
-        function RangeSlider:OnChanged(Func)
-            RangeSlider.Changed = Func
-            Func(RangeSlider.MinValue, RangeSlider.MaxValue)
+        function ColonSlider:UpdateRightDisplay()
+            local suffix = Info.RightSuffix or ''
+            RightDisplayLabel.Text = (Info.Compact and '' or (Info.RightLabel or 'R') .. ': ') .. ColonSlider.RightValue .. suffix
+            local x = math.ceil(Library:MapValue(ColonSlider.RightValue, ColonSlider.RightMin, ColonSlider.RightMax, 0, rightMaxSize))
+            RightFill.Size = UDim2.new(0, x, 1, 0)
+            RightHideBorderRight.Visible = not (x == rightMaxSize or x == 0)
         end
 
-        -- Dragging logic
+        function ColonSlider:SetLeftValue(value)
+            local new = math.clamp(value, ColonSlider.LeftMin, ColonSlider.LeftMax)
+            new = roundLeft(new)
+            if new == ColonSlider.LeftValue then return end
+            ColonSlider.LeftValue = new
+            ColonSlider:UpdateLeftDisplay()
+            Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+            Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
+            Library:AttemptSave()
+        end
+
+        function ColonSlider:SetRightValue(value)
+            local new = math.clamp(value, ColonSlider.RightMin, ColonSlider.RightMax)
+            new = roundRight(new)
+            if new == ColonSlider.RightValue then return end
+            ColonSlider.RightValue = new
+            ColonSlider:UpdateRightDisplay()
+            Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+            Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
+            Library:AttemptSave()
+        end
+
+        function ColonSlider:SetValues(left, right)
+            ColonSlider:SetLeftValue(left)
+            ColonSlider:SetRightValue(right)
+        end
+
+        function ColonSlider:OnChanged(Func)
+            ColonSlider.Changed = Func
+            Func(ColonSlider.LeftValue, ColonSlider.RightValue)
+        end
+
+        -- Dragging logic for left slider
         local draggingLeft = false
-        local draggingRight = false
-        local dragStartPosX, dragStartValue
-
-        local function startDrag(handle, isLeft)
-            return function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
-                    if isLeft then draggingLeft = true else draggingRight = true end
-                    dragStartPosX = Mouse.X
-                    dragStartValue = isLeft and RangeSlider.MinValue or RangeSlider.MaxValue
-
-                    while (draggingLeft or draggingRight) and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                        local delta = Mouse.X - dragStartPosX
-                        local deltaValue = (delta / RangeSlider.MaxSize) * (RangeSlider.Max - RangeSlider.Min)
-                        local newVal = roundToStep(dragStartValue + deltaValue)
-                        if isLeft then
-                            newVal = math.clamp(newVal, RangeSlider.Min, RangeSlider.MaxValue)
-                            if newVal ~= RangeSlider.MinValue then
-                                RangeSlider.MinValue = newVal
-                                updateUI()
-                                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
-                                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
-                            end
-                        else
-                            newVal = math.clamp(newVal, RangeSlider.MinValue, RangeSlider.Max)
-                            if newVal ~= RangeSlider.MaxValue then
-                                RangeSlider.MaxValue = newVal
-                                updateUI()
-                                Library:SafeCallback(RangeSlider.Callback, RangeSlider.MinValue, RangeSlider.MaxValue)
-                                Library:SafeCallback(RangeSlider.Changed, RangeSlider.MinValue, RangeSlider.MaxValue)
-                            end
-                        end
-                        RenderStepped:Wait()
-                    end
-                    draggingLeft = false
-                    draggingRight = false
-                    Library:AttemptSave()
-                end
-            end
-        end
-
-        LeftHandle.InputBegan:Connect(startDrag(LeftHandle, true))
-        RightHandle.InputBegan:Connect(startDrag(RightHandle, false))
-
-        -- click on track to move both? optional, but not needed for basic version
-        SliderInner.InputBegan:Connect(function(Input)
+        LeftSliderInner.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
-                local clickX = Mouse.X - SliderInner.AbsolutePosition.X
-                local clickT = math.clamp(clickX / RangeSlider.MaxSize, 0, 1)
-                local clickValue = roundToStep(RangeSlider.Min + clickT * (RangeSlider.Max - RangeSlider.Min))
-                -- move nearest handle
-                local distToLeft = math.abs(clickValue - RangeSlider.MinValue)
-                local distToRight = math.abs(clickValue - RangeSlider.MaxValue)
-                if distToLeft < distToRight then
-                    setValues(clickValue, RangeSlider.MaxValue, true)
-                else
-                    setValues(RangeSlider.MinValue, clickValue, true)
+                draggingLeft = true
+                local startX = Mouse.X
+                local startValue = ColonSlider.LeftValue
+                while draggingLeft and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                    local delta = (Mouse.X - startX) / leftMaxSize
+                    local newVal = startValue + delta * (ColonSlider.LeftMax - ColonSlider.LeftMin)
+                    newVal = roundLeft(math.clamp(newVal, ColonSlider.LeftMin, ColonSlider.LeftMax))
+                    if newVal ~= ColonSlider.LeftValue then
+                        ColonSlider.LeftValue = newVal
+                        ColonSlider:UpdateLeftDisplay()
+                        Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+                        Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
+                    end
+                    RenderStepped:Wait()
                 end
+                draggingLeft = false
+                Library:AttemptSave()
             end
         end)
 
-        setValues(RangeSlider.MinValue, RangeSlider.MaxValue, false)
+        -- Dragging logic for right slider
+        local draggingRight = false
+        RightSliderInner.InputBegan:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                draggingRight = true
+                local startX = Mouse.X
+                local startValue = ColonSlider.RightValue
+                while draggingRight and InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                    local delta = (Mouse.X - startX) / rightMaxSize
+                    local newVal = startValue + delta * (ColonSlider.RightMax - ColonSlider.RightMin)
+                    newVal = roundRight(math.clamp(newVal, ColonSlider.RightMin, ColonSlider.RightMax))
+                    if newVal ~= ColonSlider.RightValue then
+                        ColonSlider.RightValue = newVal
+                        ColonSlider:UpdateRightDisplay()
+                        Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+                        Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
+                    end
+                    RenderStepped:Wait()
+                end
+                draggingRight = false
+                Library:AttemptSave()
+            end
+        end)
+
+        ColonSlider:UpdateLeftDisplay()
+        ColonSlider:UpdateRightDisplay()
+
         Groupbox:AddBlank(Info.BlankSize or 6)
         Groupbox:Resize()
 
-        Options[Idx] = RangeSlider
-        return RangeSlider
+        Options[Idx] = ColonSlider
+        return ColonSlider
     end
 
     function Funcs:AddDropdown(Idx, Info)
@@ -3180,7 +3229,7 @@ function Library:CreateWindow(...)
     local Outer = Library:Create('Frame', {
         AnchorPoint = Config.AnchorPoint,
         BackgroundColor3 = Color3.new(0, 0, 0);
-        BackgroundTransparency = 1, -- remove outer border
+        BackgroundTransparency = 1,   -- remove outer border
         BorderSizePixel = 0;
         Position = Config.Position,
         Size = Config.Size,
@@ -3195,7 +3244,7 @@ function Library:CreateWindow(...)
         BackgroundColor3 = Library.MainColor;
         BorderColor3 = Library.AccentColor;
         BorderMode = Enum.BorderMode.Inset;
-        BorderSizePixel = 0, -- remove the accent border around the whole window
+        BorderSizePixel = 0,            -- remove accent border around the whole window
         Position = UDim2.new(0, 1, 0, 1);
         Size = UDim2.new(1, -2, 1, -2);
         ZIndex = 1;
