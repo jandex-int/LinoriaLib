@@ -1789,7 +1789,7 @@ do
     end;
 
     function Funcs:AddToggle(Idx, Info)
-        assert(Info.Text, 'AddInput: Missing `Text` string.')
+        assert(Info.Text, 'AddToggle: Missing `Text` string.')
 
         local Toggle = {
             Value = Info.Default or false;
@@ -2084,29 +2084,30 @@ do
             Library:SafeCallback(Slider.Changed, Slider.Value);
         end;
 
-        -- Click on slider inner to set value
         SliderInner.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
-                local clickX = Mouse.X - SliderInner.AbsolutePosition.X
-                local t = math.clamp(clickX / Slider.MaxSize, 0, 1)
-                local newValue = Round(Slider.Min + t * (Slider.Max - Slider.Min))
-                Slider:SetValue(newValue)
-                -- Also start dragging immediately after click
                 local mPos = Mouse.X;
                 local gPos = Fill.Size.X.Offset;
                 local Diff = mPos - (Fill.AbsolutePosition.X + gPos);
+
                 while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
                     local nMPos = Mouse.X;
                     local nX = math.clamp(gPos + (nMPos - mPos) + Diff, 0, Slider.MaxSize);
+
                     local nValue = Slider:GetValueFromXOffset(nX);
-                    if nValue ~= Slider.Value then
-                        Slider.Value = nValue;
-                        Slider:Display();
+                    local OldValue = Slider.Value;
+                    Slider.Value = nValue;
+
+                    Slider:Display();
+
+                    if nValue ~= OldValue then
                         Library:SafeCallback(Slider.Callback, Slider.Value);
                         Library:SafeCallback(Slider.Changed, Slider.Value);
                     end;
+
                     RenderStepped:Wait();
                 end;
+
                 Library:AttemptSave();
             end;
         end);
@@ -2120,16 +2121,16 @@ do
         return Slider;
     end;
 
-    -- [[ FIXED ColonSlider – two independent sliders side by side, exactly like normal slider ]]
+    -- [[ COLON SLIDER – two independent sliders side by side ]]
     function Funcs:AddColonSlider(Idx, Info)
-        assert(Info.LeftMin ~= nil, 'AddColonSlider: missing LeftMin')
-        assert(Info.LeftMax ~= nil, 'AddColonSlider: missing LeftMax')
-        assert(Info.RightMin ~= nil, 'AddColonSlider: missing RightMin')
-        assert(Info.RightMax ~= nil, 'AddColonSlider: missing RightMax')
-        assert(Info.LeftDefault ~= nil, 'AddColonSlider: missing LeftDefault')
-        assert(Info.RightDefault ~= nil, 'AddColonSlider: missing RightDefault')
-        assert(Info.LeftRounding ~= nil, 'AddColonSlider: missing LeftRounding')
-        assert(Info.RightRounding ~= nil, 'AddColonSlider: missing RightRounding')
+        assert(Info.LeftMin ~= nil, "AddColonSlider: missing LeftMin")
+        assert(Info.LeftMax ~= nil, "AddColonSlider: missing LeftMax")
+        assert(Info.RightMin ~= nil, "AddColonSlider: missing RightMin")
+        assert(Info.RightMax ~= nil, "AddColonSlider: missing RightMax")
+        assert(Info.LeftDefault ~= nil, "AddColonSlider: missing LeftDefault")
+        assert(Info.RightDefault ~= nil, "AddColonSlider: missing RightDefault")
+        assert(Info.LeftRounding ~= nil, "AddColonSlider: missing LeftRounding")
+        assert(Info.RightRounding ~= nil, "AddColonSlider: missing RightRounding")
 
         local ColonSlider = {
             LeftValue = Info.LeftDefault,
@@ -2140,165 +2141,162 @@ do
             RightMax = Info.RightMax,
             LeftRounding = Info.LeftRounding,
             RightRounding = Info.RightRounding,
-            Type = 'ColonSlider',
+            Type = "ColonSlider",
             Callback = Info.Callback or function(left, right) end,
         }
 
         local Groupbox = self
         local Container = Groupbox.Container
 
-        -- Optional main label (same style as normal slider)
+        -- Optional main label
         if not Info.Compact then
             Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 10);
                 TextSize = 14;
-                Text = Info.Text or 'Colon Slider';
+                Text = Info.Text or "Colon Slider";
                 TextXAlignment = Enum.TextXAlignment.Left;
                 TextYAlignment = Enum.TextYAlignment.Bottom;
                 ZIndex = 5;
                 Parent = Container;
-            });
-            Groupbox:AddBlank(3);
+            })
+            Groupbox:AddBlank(3)
         end
 
-        -- Outer container for the two sliders (side by side with smaller gap: total 3px gap)
-        local SplitContainer = Library:Create('Frame', {
+        -- Outer container
+        local SplitContainer = Library:Create("Frame", {
             BackgroundTransparency = 1;
             Size = UDim2.new(1, -4, 0, 13);
             ZIndex = 5;
             Parent = Container;
         })
 
-        -- Each slider gets half width minus half the gap (1.5px each side -> total 3px gap)
-        local halfWidth = 0.5
-        local gap = 1.5  -- offset in pixels
+        local gap = 2  -- small gap between sliders
 
-        -- Left slider
-        local LeftSliderOuter = Library:Create('Frame', {
+        -- LEFT SLIDER
+        local LeftSliderOuter = Library:Create("Frame", {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(halfWidth, -gap, 1, 0);
+            Size = UDim2.new(0.5, -gap, 1, 0);
             ZIndex = 5;
             Parent = SplitContainer;
-        });
-        Library:AddToRegistry(LeftSliderOuter, { BorderColor3 = 'Black' });
+        })
+        Library:AddToRegistry(LeftSliderOuter, { BorderColor3 = "Black" })
 
-        local LeftSliderInner = Library:Create('Frame', {
+        local LeftSliderInner = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
             ZIndex = 6;
             Parent = LeftSliderOuter;
-        });
+        })
         Library:AddToRegistry(LeftSliderInner, {
-            BackgroundColor3 = 'MainColor';
-            BorderColor3 = 'OutlineColor';
-        });
+            BackgroundColor3 = "MainColor";
+            BorderColor3 = "OutlineColor";
+        })
 
-        local LeftFill = Library:Create('Frame', {
+        local LeftFill = Library:Create("Frame", {
             BackgroundColor3 = Library.AccentColor;
             BorderColor3 = Library.AccentColorDark;
             Size = UDim2.new(0, 0, 1, 0);
             ZIndex = 7;
             Parent = LeftSliderInner;
-        });
+        })
         Library:AddToRegistry(LeftFill, {
-            BackgroundColor3 = 'AccentColor';
-            BorderColor3 = 'AccentColorDark';
-        });
+            BackgroundColor3 = "AccentColor";
+            BorderColor3 = "AccentColorDark";
+        })
 
-        local LeftHideBorderRight = Library:Create('Frame', {
+        local LeftHideBorderRight = Library:Create("Frame", {
             BackgroundColor3 = Library.AccentColor;
             BorderSizePixel = 0;
             Position = UDim2.new(1, 0, 0, 0);
             Size = UDim2.new(0, 1, 1, 0);
             ZIndex = 8;
             Parent = LeftFill;
-        });
+        })
         Library:AddToRegistry(LeftHideBorderRight, {
-            BackgroundColor3 = 'AccentColor';
-        });
+            BackgroundColor3 = "AccentColor";
+        })
 
         local LeftDisplayLabel = Library:CreateLabel({
             Size = UDim2.new(1, 0, 1, 0);
-            TextSize = 14;   -- same as normal slider
-            Text = '';
+            TextSize = 14;
+            Text = "";
             ZIndex = 9;
             Parent = LeftSliderInner;
-        });
+        })
 
         Library:OnHighlight(LeftSliderOuter, LeftSliderOuter,
-            { BorderColor3 = 'AccentColor' },
-            { BorderColor3 = 'Black' }
-        );
+            { BorderColor3 = "AccentColor" },
+            { BorderColor3 = "Black" }
+        )
 
-        -- Right slider
-        local RightSliderOuter = Library:Create('Frame', {
+        -- RIGHT SLIDER
+        local RightSliderOuter = Library:Create("Frame", {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.new(halfWidth, gap, 0, 0);
-            Size = UDim2.new(halfWidth, -gap, 1, 0);
+            Position = UDim2.new(0.5, gap, 0, 0);
+            Size = UDim2.new(0.5, -gap, 1, 0);
             ZIndex = 5;
             Parent = SplitContainer;
-        });
-        Library:AddToRegistry(RightSliderOuter, { BorderColor3 = 'Black' });
+        })
+        Library:AddToRegistry(RightSliderOuter, { BorderColor3 = "Black" })
 
-        local RightSliderInner = Library:Create('Frame', {
+        local RightSliderInner = Library:Create("Frame", {
             BackgroundColor3 = Library.MainColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
             ZIndex = 6;
             Parent = RightSliderOuter;
-        });
+        })
         Library:AddToRegistry(RightSliderInner, {
-            BackgroundColor3 = 'MainColor';
-            BorderColor3 = 'OutlineColor';
-        });
+            BackgroundColor3 = "MainColor";
+            BorderColor3 = "OutlineColor";
+        })
 
-        local RightFill = Library:Create('Frame', {
+        local RightFill = Library:Create("Frame", {
             BackgroundColor3 = Library.AccentColor;
             BorderColor3 = Library.AccentColorDark;
             Size = UDim2.new(0, 0, 1, 0);
             ZIndex = 7;
             Parent = RightSliderInner;
-        });
+        })
         Library:AddToRegistry(RightFill, {
-            BackgroundColor3 = 'AccentColor';
-            BorderColor3 = 'AccentColorDark';
-        });
+            BackgroundColor3 = "AccentColor";
+            BorderColor3 = "AccentColorDark";
+        })
 
-        local RightHideBorderRight = Library:Create('Frame', {
+        local RightHideBorderRight = Library:Create("Frame", {
             BackgroundColor3 = Library.AccentColor;
             BorderSizePixel = 0;
             Position = UDim2.new(1, 0, 0, 0);
             Size = UDim2.new(0, 1, 1, 0);
             ZIndex = 8;
             Parent = RightFill;
-        });
+        })
         Library:AddToRegistry(RightHideBorderRight, {
-            BackgroundColor3 = 'AccentColor';
-        });
+            BackgroundColor3 = "AccentColor";
+        })
 
         local RightDisplayLabel = Library:CreateLabel({
             Size = UDim2.new(1, 0, 1, 0);
             TextSize = 14;
-            Text = '';
+            Text = "";
             ZIndex = 9;
             Parent = RightSliderInner;
-        });
+        })
 
         Library:OnHighlight(RightSliderOuter, RightSliderOuter,
-            { BorderColor3 = 'AccentColor' },
-            { BorderColor3 = 'Black' }
-        );
+            { BorderColor3 = "AccentColor" },
+            { BorderColor3 = "Black" }
+        )
 
-        if type(Info.Tooltip) == 'string' then
+        if type(Info.Tooltip) == "string" then
             Library:AddToolTip(Info.Tooltip, SplitContainer)
         end
 
-        -- Max width for each slider (half of normal slider's MaxSize)
         local leftMaxSize = 232 / 2
         local rightMaxSize = 232 / 2
 
@@ -2306,21 +2304,21 @@ do
             if ColonSlider.LeftRounding == 0 then
                 return math.floor(value)
             end
-            return tonumber(string.format('%.' .. ColonSlider.LeftRounding .. 'f', value))
+            return tonumber(string.format("%." .. ColonSlider.LeftRounding .. "f", value))
         end
 
         local function roundRight(value)
             if ColonSlider.RightRounding == 0 then
                 return math.floor(value)
             end
-            return tonumber(string.format('%.' .. ColonSlider.RightRounding .. 'f', value))
+            return tonumber(string.format("%." .. ColonSlider.RightRounding .. "f", value))
         end
 
         function ColonSlider:UpdateLeftDisplay()
-            local suffix = Info.LeftSuffix or ''
-            local labelText = Info.LeftLabel or 'L'
+            local suffix = Info.LeftSuffix or ""
             if Info.Compact then
-                LeftDisplayLabel.Text = labelText .. ': ' .. ColonSlider.LeftValue .. suffix
+                local label = Info.LeftLabel or "L"
+                LeftDisplayLabel.Text = label .. ": " .. ColonSlider.LeftValue .. suffix
             else
                 LeftDisplayLabel.Text = ColonSlider.LeftValue .. suffix
             end
@@ -2332,10 +2330,10 @@ do
         end
 
         function ColonSlider:UpdateRightDisplay()
-            local suffix = Info.RightSuffix or ''
-            local labelText = Info.RightLabel or 'R'
+            local suffix = Info.RightSuffix or ""
             if Info.Compact then
-                RightDisplayLabel.Text = labelText .. ': ' .. ColonSlider.RightValue .. suffix
+                local label = Info.RightLabel or "R"
+                RightDisplayLabel.Text = label .. ": " .. ColonSlider.RightValue .. suffix
             else
                 RightDisplayLabel.Text = ColonSlider.RightValue .. suffix
             end
@@ -2378,41 +2376,59 @@ do
             Func(ColonSlider.LeftValue, ColonSlider.RightValue)
         end
 
-        -- Helper to handle dragging and clicking for a single slider
-        local function setupSlider(sliderInner, fill, maxSize, getValueFunc, setValueFunc, roundFunc, minVal, maxVal)
-            sliderInner.InputBegan:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
-                    -- Click to set value
-                    local clickX = Mouse.X - sliderInner.AbsolutePosition.X
-                    local t = math.clamp(clickX / maxSize, 0, 1)
-                    local newValue = roundFunc(minVal + t * (maxVal - minVal))
-                    setValueFunc(newValue)
-                    -- Then start dragging
-                    local startX = Mouse.X
-                    local startValue = getValueFunc()
-                    while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                        local delta = (Mouse.X - startX) / maxSize
-                        local newVal = startValue + delta * (maxVal - minVal)
-                        newVal = roundFunc(math.clamp(newVal, minVal, maxVal))
-                        if newVal ~= getValueFunc() then
-                            setValueFunc(newVal)
-                        end
-                        RenderStepped:Wait()
+        -- Dragging logic for left slider
+        LeftSliderInner.InputBegan:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                -- Click to set
+                local clickX = Mouse.X - LeftSliderInner.AbsolutePosition.X
+                local t = math.clamp(clickX / leftMaxSize, 0, 1)
+                local newValue = roundLeft(ColonSlider.LeftMin + t * (ColonSlider.LeftMax - ColonSlider.LeftMin))
+                ColonSlider:SetLeftValue(newValue)
+                -- Then drag
+                local startX = Mouse.X
+                local startValue = ColonSlider.LeftValue
+                while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                    local delta = (Mouse.X - startX) / leftMaxSize
+                    local newVal = startValue + delta * (ColonSlider.LeftMax - ColonSlider.LeftMin)
+                    newVal = roundLeft(math.clamp(newVal, ColonSlider.LeftMin, ColonSlider.LeftMax))
+                    if newVal ~= ColonSlider.LeftValue then
+                        ColonSlider.LeftValue = newVal
+                        ColonSlider:UpdateLeftDisplay()
+                        Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+                        Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
                     end
-                    Library:AttemptSave()
+                    RenderStepped:Wait()
                 end
-            end)
-        end
+                Library:AttemptSave()
+            end
+        end)
 
-        setupSlider(LeftSliderInner, LeftFill, leftMaxSize,
-            function() return ColonSlider.LeftValue end,
-            function(v) ColonSlider:SetLeftValue(v) end,
-            roundLeft, ColonSlider.LeftMin, ColonSlider.LeftMax)
-
-        setupSlider(RightSliderInner, RightFill, rightMaxSize,
-            function() return ColonSlider.RightValue end,
-            function(v) ColonSlider:SetRightValue(v) end,
-            roundRight, ColonSlider.RightMin, ColonSlider.RightMax)
+        -- Dragging logic for right slider
+        RightSliderInner.InputBegan:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                -- Click to set
+                local clickX = Mouse.X - RightSliderInner.AbsolutePosition.X
+                local t = math.clamp(clickX / rightMaxSize, 0, 1)
+                local newValue = roundRight(ColonSlider.RightMin + t * (ColonSlider.RightMax - ColonSlider.RightMin))
+                ColonSlider:SetRightValue(newValue)
+                -- Then drag
+                local startX = Mouse.X
+                local startValue = ColonSlider.RightValue
+                while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                    local delta = (Mouse.X - startX) / rightMaxSize
+                    local newVal = startValue + delta * (ColonSlider.RightMax - ColonSlider.RightMin)
+                    newVal = roundRight(math.clamp(newVal, ColonSlider.RightMin, ColonSlider.RightMax))
+                    if newVal ~= ColonSlider.RightValue then
+                        ColonSlider.RightValue = newVal
+                        ColonSlider:UpdateRightDisplay()
+                        Library:SafeCallback(ColonSlider.Callback, ColonSlider.LeftValue, ColonSlider.RightValue)
+                        Library:SafeCallback(ColonSlider.Changed, ColonSlider.LeftValue, ColonSlider.RightValue)
+                    end
+                    RenderStepped:Wait()
+                end
+                Library:AttemptSave()
+            end
+        end)
 
         ColonSlider:UpdateLeftDisplay()
         ColonSlider:UpdateRightDisplay()
